@@ -73,6 +73,17 @@ namespace Kernel.ServiceLocator
 			return _instance._singletons.ContainsKey(concreteType);
 		}
 
+
+		public static bool IsTransientRegistered<TConcrete>()
+		{
+			return IsTransientRegistered(typeof(TConcrete));
+		}
+
+		public static bool IsTransientRegistered(Type concreteType)
+		{
+			return _instance._transients.ContainsKey(concreteType);
+		}
+
 		public static void RegisterSingletons()
 		{
 			foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
@@ -85,6 +96,46 @@ namespace Kernel.ServiceLocator
 						var abstractType = (attr as RegisterSingletonAttribute).AbstractType;
 						RegisterSingleton(abstractType, type);
 					}
+				}
+			}
+		}
+
+		public static void InjectSingletons(object instance)
+		{
+			InjectSingletons(instance, false);
+		}
+
+		public static void InjectSingletons(object instance, bool onlyExisting)
+		{
+			if (instance == null) return;
+
+			var fields = instance.GetType().GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+			foreach (var field in fields)
+			{
+				if (_instance._singletons.ContainsKey(field.FieldType))
+				{
+					var val = Locator.Resolve(field.FieldType, onlyExisting);
+					field.SetValue(instance, val);
+				}
+			}
+		}
+
+		public static void InjectTransients(object instance)
+		{
+			InjectTransients(instance, false);
+		}
+
+		public static void InjectTransients(object instance, bool onlyExisting)
+		{
+			if (instance == null) return;
+
+			var fields = instance.GetType().GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+			foreach (var field in fields)
+			{
+				if (_instance._transients.ContainsKey(field.FieldType))
+				{
+					var val = Locator.Resolve(field.FieldType, onlyExisting);
+					field.SetValue(instance, val);
 				}
 			}
 		}
@@ -140,6 +191,11 @@ namespace Kernel.ServiceLocator
 			return Resolve(typeof(T), onlyExisting) as T;
 		}
 
+		public static object Resolve(Type t)
+		{
+			return Resolve(t, false);
+		}
+
 		public static object Resolve(Type t, bool onlyExisting)
 		{
 			object result = null;
@@ -169,7 +225,18 @@ namespace Kernel.ServiceLocator
 			}
 			else if (_instance._transients.TryGetValue(t, out concreteType))
 			{
-				result = Activator.CreateInstance(concreteType);
+				object r = null;
+				if (concreteType.IsSubclassOf(typeof(MonoBehaviour)))
+				{
+					GameObject singletonGameObject = new GameObject();
+					r = singletonGameObject.AddComponent(concreteType);
+					singletonGameObject.name = t.ToString() + " (transient)";
+				}
+				else
+				{
+					r = Activator.CreateInstance(concreteType);
+				}
+				result = r;
 			}
 			return result;
 		}
