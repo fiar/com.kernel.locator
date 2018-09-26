@@ -100,12 +100,12 @@ namespace Kernel.ServiceLocator
 			}
 		}
 
-		public static void InjectSingletons(object instance)
+		public static void Inject(object instance)
 		{
-			InjectSingletons(instance, false);
+			Inject(instance, false);
 		}
 
-		public static void InjectSingletons(object instance, bool onlyExisting)
+		public static void Inject(object instance, bool onlyExisting)
 		{
 			if (instance == null) return;
 
@@ -117,21 +117,7 @@ namespace Kernel.ServiceLocator
 					var val = Locator.Resolve(field.FieldType, onlyExisting);
 					field.SetValue(instance, val);
 				}
-			}
-		}
 
-		public static void InjectTransients(object instance)
-		{
-			InjectTransients(instance, false);
-		}
-
-		public static void InjectTransients(object instance, bool onlyExisting)
-		{
-			if (instance == null) return;
-
-			var fields = instance.GetType().GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-			foreach (var field in fields)
-			{
 				if (_instance._transients.ContainsKey(field.FieldType))
 				{
 					var val = Locator.Resolve(field.FieldType, onlyExisting);
