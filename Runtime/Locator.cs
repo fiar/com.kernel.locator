@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
@@ -109,9 +110,22 @@ namespace Kernel.ServiceLocator
 		{
 			if (instance == null) return;
 
-			var fields = instance.GetType().GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+			var fields = instance.GetType()
+				.GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+#if !UNITY_EDITOR
+				.Where(x => x.IsInitOnly)
+#endif
+				.Where(x => x.IsDefined(typeof(InjectAttribute), false));
+
 			foreach (var field in fields)
 			{
+#if UNITY_EDITOR
+				if (!field.IsInitOnly)
+				{
+					Debug.LogError(string.Format("Field \"{0}\" must be marked as \"readonly\" in \"{1}\"", field.Name, instance.GetType()));
+					continue;
+				}
+#endif
 				if (_instance._singletons.ContainsKey(field.FieldType))
 				{
 					var val = Locator.Resolve(field.FieldType, onlyExisting);
