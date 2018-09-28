@@ -42,10 +42,21 @@ namespace Kernel.ServiceLocator
 
 		public static void Reset()
 		{
+			var contextServices = new List<Type>();
 			foreach (KeyValuePair<Type, object> kvp in _instance._singletonInstances)
 			{
 				IService service = kvp.Value as IService;
 				if (service != null) service.Reset();
+
+				if (kvp.Value is IContextService)
+				{
+					contextServices.Add(kvp.Key);
+				}
+			}
+
+			foreach (var contextService in contextServices)
+			{
+				_instance._singletonInstances.Remove(contextService);
 			}
 
 			_instance._transients.Clear();
