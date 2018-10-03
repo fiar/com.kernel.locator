@@ -45,18 +45,20 @@ namespace Kernel.ServiceLocator
 			var contextServices = new List<Type>();
 			foreach (KeyValuePair<Type, object> kvp in _instance._singletonInstances)
 			{
-				IService service = kvp.Value as IService;
+				var service = kvp.Value as IService;
 				if (service != null) service.Reset();
 
-				if (kvp.Value is IContextService)
+				var contextService = kvp.Value as IContextService;
+				if (contextService is IContextService)
 				{
+					contextService.Destroy();
 					contextServices.Add(kvp.Key);
 				}
 			}
 
-			foreach (var contextService in contextServices)
+			foreach (var service in contextServices)
 			{
-				_instance._singletonInstances.Remove(contextService);
+				_instance._singletonInstances.Remove(service);
 			}
 
 			_instance._transients.Clear();
