@@ -143,6 +143,52 @@ namespace Kernel.ServiceLocator
 			}
 		}
 
+		public static void InjectStatic(params Assembly[] assemblies)
+		{
+			var fields = FindStaticFields(assemblies);
+			InjectStaticFields(fields);
+		}
+
+		public static void InjectStaticFields(IEnumerable<FieldInfo> fields)
+		{
+			foreach (var field in fields)
+			{
+				if (_instance._singletons.ContainsKey(field.FieldType))
+				{
+					var val = Locator.Resolve(field.FieldType);
+					field.SetValue(null, val);
+				}
+
+				if (_instance._transients.ContainsKey(field.FieldType))
+				{
+					var val = Locator.Resolve(field.FieldType);
+					field.SetValue(null, val);
+				}
+			}
+		}
+
+		public static IEnumerable<FieldInfo> FindStaticFields(params Assembly[] assemblies)
+		{
+			var result = new List<FieldInfo>();
+
+			foreach (var assembly in assemblies)
+			{
+				foreach (var type in assembly.GetTypes())
+				{
+					// if (type.GetCustomAttributes(typeof(StaticInjectAttribute), true).Length > 0)
+					// {
+					var fields = type
+						.GetFields(BindingFlags.Static | BindingFlags.NonPublic)
+						.Where(x => x.IsDefined(typeof(InjectAttribute), false));
+
+					result.AddRange(fields);
+					// }
+				}
+			}
+
+			return result;
+		}
+
 		public static void RegisterSingleton<TConcrete>()
 		{
 			RegisterSingleton(typeof(TConcrete));
