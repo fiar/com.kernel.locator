@@ -151,27 +151,33 @@ namespace Kernel.ServiceLocator
 
 		public static void InjectStaticFields(IEnumerable<FieldInfo> fields)
 		{
-			var instances = new List<object>();
+			var instances = new Dictionary<Type, object>();
 			foreach (var field in fields)
 			{
 				if (_instance._singletons.ContainsKey(field.FieldType))
 				{
 					var val = Locator.Resolve(field.FieldType, false, false);
 					field.SetValue(null, val);
-					instances.Add(val);
+					if (!instances.ContainsKey(val.GetType()))
+					{
+						instances[val.GetType()] = val;
+					}
 				}
 
 				if (_instance._transients.ContainsKey(field.FieldType))
 				{
 					var val = Locator.Resolve(field.FieldType, false, false);
 					field.SetValue(null, val);
-					instances.Add(val);
+					if (!instances.ContainsKey(val.GetType()))
+					{
+						instances[val.GetType()] = val;
+					}
 				}
 			}
 
-			foreach (var instance in instances)
+			foreach (var kvp in instances)
 			{
-				IService service = instance as IService;
+				IService service = kvp.Value as IService;
 				if (service != null) service.Awake();
 			}
 		}
