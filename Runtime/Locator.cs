@@ -116,12 +116,6 @@ namespace Kernel.ServiceLocator
 					}
 				}
 			}
-
-			foreach (var kvp in instances)
-			{
-				IService service = kvp.Value as IService;
-				if (service != null) service.Awake();
-			}
 		}
 
 		public static IEnumerable<FieldInfo> FindStaticFields(params Assembly[] assemblies)

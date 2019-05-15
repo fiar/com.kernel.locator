@@ -1,14 +1,14 @@
 {
-    "name": "com.kernel.servicelocator",
-    "displayName": "Kernel ServiceLocator",
-	"author": "fiar",
-    "version": "0.6.5",
-    "unity": "2018.4",
-    "description": "Kernel ServiceLocator package",
-    "keywords": [
-        "kernel"
-    ],
-    "dependencies": {
-    },
-    "category": "Kernel"
+  "name": "com.kernel.servicelocator",
+  "displayName": "Kernel ServiceLocator",
+  "author": "fiar",
+  "version": "0.6.6",
+  "unity": "2018.4",
+  "description": "Kernel ServiceLocator package",
+  "keywords": [
+    "kernel"
+  ],
+  "dependencies": {
+  },
+  "category": "Kernel"
 }
