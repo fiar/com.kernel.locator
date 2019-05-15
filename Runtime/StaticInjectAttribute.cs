@@ -2,12 +2,8 @@
 
 namespace Kernel.ServiceLocator
 {
-	// [AttributeUsage(AttributeTargets.Class)]
-	// public class StaticInjectAttribute : Attribute
-	// {
-
-	// 	public StaticInjectAttribute()
-	// 	{
-	// 	}
-	// }
+	[AttributeUsage(AttributeTargets.Field)]
+	public class StaticInjectAttribute : Attribute
+	{
+	}
 }

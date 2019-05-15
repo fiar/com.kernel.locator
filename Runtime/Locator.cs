@@ -151,19 +151,28 @@ namespace Kernel.ServiceLocator
 
 		public static void InjectStaticFields(IEnumerable<FieldInfo> fields)
 		{
+			var instances = new List<object>();
 			foreach (var field in fields)
 			{
 				if (_instance._singletons.ContainsKey(field.FieldType))
 				{
-					var val = Locator.Resolve(field.FieldType);
+					var val = Locator.Resolve(field.FieldType, false, false);
 					field.SetValue(null, val);
+					instances.Add(val);
 				}
 
 				if (_instance._transients.ContainsKey(field.FieldType))
 				{
-					var val = Locator.Resolve(field.FieldType);
+					var val = Locator.Resolve(field.FieldType, false, false);
 					field.SetValue(null, val);
+					instances.Add(val);
 				}
+			}
+
+			foreach (var instance in instances)
+			{
+				IService service = instance as IService;
+				if (service != null) service.Awake();
 			}
 		}
 
@@ -247,6 +256,11 @@ namespace Kernel.ServiceLocator
 
 		public static object Resolve(Type t, bool onlyExisting)
 		{
+			return Resolve(t, onlyExisting, true);
+		}
+
+		private static object Resolve(Type t, bool onlyExisting, bool callAwake)
+		{
 			object result = null;
 			Type concreteType = null;
 			if (_instance._singletons.TryGetValue(t, out concreteType))
@@ -267,8 +281,11 @@ namespace Kernel.ServiceLocator
 
 					_instance._singletonInstances[t] = r;
 
-					IService service = r as IService;
-					if (service != null) service.Awake();
+					if (callAwake)
+					{
+						IService service = r as IService;
+						if (service != null) service.Awake();
+					}
 				}
 				result = r;
 			}
