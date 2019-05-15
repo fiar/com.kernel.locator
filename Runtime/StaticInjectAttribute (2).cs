@@ -3,7 +3,7 @@
 namespace Kernel.ServiceLocator
 {
 	[AttributeUsage(AttributeTargets.Field)]
-	public class InjectAttribute : Attribute
+	public class StaticInjectAttribute : Attribute
 	{
 	}
 }

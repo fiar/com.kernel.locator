@@ -114,34 +114,34 @@ namespace Kernel.ServiceLocator
 			}
 		}
 
-		public static void Inject(object instance)
-		{
-			Inject(instance, false);
-		}
+		//public static void Inject(object instance)
+		//{
+		//	Inject(instance, false);
+		//}
 
-		public static void Inject(object instance, bool onlyExisting)
-		{
-			if (instance == null) return;
+		//public static void Inject(object instance, bool onlyExisting)
+		//{
+		//	if (instance == null) return;
 
-			var fields = instance.GetType()
-				.GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
-				.Where(x => x.IsDefined(typeof(InjectAttribute), false));
+		//	var fields = instance.GetType()
+		//		.GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+		//		.Where(x => x.IsDefined(typeof(InjectAttribute), false));
 
-			foreach (var field in fields)
-			{
-				if (_instance._singletons.ContainsKey(field.FieldType))
-				{
-					var val = Locator.Resolve(field.FieldType, onlyExisting);
-					field.SetValue(instance, val);
-				}
+		//	foreach (var field in fields)
+		//	{
+		//		if (_instance._singletons.ContainsKey(field.FieldType))
+		//		{
+		//			var val = Locator.Resolve(field.FieldType, onlyExisting);
+		//			field.SetValue(instance, val);
+		//		}
 
-				if (_instance._transients.ContainsKey(field.FieldType))
-				{
-					var val = Locator.Resolve(field.FieldType, onlyExisting);
-					field.SetValue(instance, val);
-				}
-			}
-		}
+		//		if (_instance._transients.ContainsKey(field.FieldType))
+		//		{
+		//			var val = Locator.Resolve(field.FieldType, onlyExisting);
+		//			field.SetValue(instance, val);
+		//		}
+		//	}
+		//}
 
 		public static void InjectStatic(params Assembly[] assemblies)
 		{
@@ -179,7 +179,7 @@ namespace Kernel.ServiceLocator
 					// {
 					var fields = type
 						.GetFields(BindingFlags.Static | BindingFlags.NonPublic)
-						.Where(x => x.IsDefined(typeof(InjectAttribute), false));
+						.Where(x => x.IsDefined(typeof(StaticInjectAttribute), false));
 
 					result.AddRange(fields);
 					// }
