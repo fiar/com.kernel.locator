@@ -11,8 +11,7 @@ namespace Kernel.ServiceLocator
 		private static Locator _instance;
 
 		private Dictionary<Type, Type> _singletons = new Dictionary<Type, Type>();
-		private Dictionary<Type, Type> _transients = new Dictionary<Type, Type>();
-		private Dictionary<Type, object> _singletonInstances = new Dictionary<Type, object>();
+		private Dictionary<Type, Tuple<object, bool>> _singletonInstances = new Dictionary<Type, Tuple<object, bool>>();
 
 
 		public static IEnumerable<KeyValuePair<Type, Type>> Singletons
@@ -20,12 +19,7 @@ namespace Kernel.ServiceLocator
 			get { return _instance._singletons; }
 		}
 
-		public static IEnumerable<KeyValuePair<Type, Type>> Transients
-		{
-			get { return _instance._transients; }
-		}
-
-		public static IEnumerable<KeyValuePair<Type, object>> SingletonInstances
+		public static IEnumerable<KeyValuePair<Type, Tuple<object, bool>>> SingletonInstances
 		{
 			get { return _instance._singletonInstances; }
 		}
@@ -42,31 +36,30 @@ namespace Kernel.ServiceLocator
 
 		public static void Reset()
 		{
-			var contextServices = new List<Type>();
-			foreach (KeyValuePair<Type, object> kvp in _instance._singletonInstances)
+			var disposables = new List<Type>();
+			foreach (var kvp in _instance._singletonInstances)
 			{
-				var service = kvp.Value as IService;
+				var service = kvp.Value.Item1 as IService;
 				if (service != null) service.Reset();
 
-				var contextService = kvp.Value as IContextService;
-				if (contextService is IContextService)
+				var disposableService = kvp.Value.Item1 as IDisposableService;
+				if (disposableService is IDisposableService)
 				{
-					contextService.Destroy();
-					contextServices.Add(kvp.Key);
+					disposableService.Destroy();
+					disposables.Add(kvp.Key);
 				}
 			}
 
-			foreach (var service in contextServices)
+			foreach (var service in disposables)
 			{
 				_instance._singletonInstances.Remove(service);
+				_instance._singletons.Remove(service);
 			}
-
-			_instance._transients.Clear();
 		}
 
 		public static void Destroy()
 		{
-			foreach (KeyValuePair<Type, object> kvp in _instance._singletonInstances)
+			foreach (var kvp in _instance._singletonInstances)
 			{
 				IService service = kvp.Value as IService;
 				if (service != null) service.Destroy();
@@ -74,7 +67,6 @@ namespace Kernel.ServiceLocator
 
 			_instance._singletons.Clear();
 			_instance._singletonInstances.Clear();
-			_instance._transients.Clear();
 		}
 
 		public static bool IsSingletonRegistered<TConcrete>()
@@ -87,20 +79,9 @@ namespace Kernel.ServiceLocator
 			return _instance._singletons.ContainsKey(concreteType);
 		}
 
-
-		public static bool IsTransientRegistered<TConcrete>()
+		public static void RegisterSingletons(params Assembly[] assemblies)
 		{
-			return IsTransientRegistered(typeof(TConcrete));
-		}
-
-		public static bool IsTransientRegistered(Type concreteType)
-		{
-			return _instance._transients.ContainsKey(concreteType);
-		}
-
-		public static void RegisterSingletons()
-		{
-			foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+			foreach (Assembly assembly in assemblies)
 			{
 				foreach (Type type in assembly.GetTypes())
 				{
@@ -110,35 +91,6 @@ namespace Kernel.ServiceLocator
 						var abstractType = (attr as RegisterSingletonAttribute).AbstractType;
 						RegisterSingleton(abstractType, type);
 					}
-				}
-			}
-		}
-
-		public static void Inject(object instance)
-		{
-			Inject(instance, false);
-		}
-
-		public static void Inject(object instance, bool onlyExisting)
-		{
-			if (instance == null) return;
-
-			var fields = instance.GetType()
-				.GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
-				.Where(x => x.IsDefined(typeof(InjectAttribute), false));
-
-			foreach (var field in fields)
-			{
-				if (_instance._singletons.ContainsKey(field.FieldType))
-				{
-					var val = Locator.Resolve(field.FieldType, onlyExisting);
-					field.SetValue(instance, val);
-				}
-
-				if (_instance._transients.ContainsKey(field.FieldType))
-				{
-					var val = Locator.Resolve(field.FieldType, onlyExisting);
-					field.SetValue(instance, val);
 				}
 			}
 		}
@@ -155,13 +107,7 @@ namespace Kernel.ServiceLocator
 			{
 				if (_instance._singletons.ContainsKey(field.FieldType))
 				{
-					var val = Locator.Resolve(field.FieldType);
-					field.SetValue(null, val);
-				}
-
-				if (_instance._transients.ContainsKey(field.FieldType))
-				{
-					var val = Locator.Resolve(field.FieldType);
+					var val = Locator.Resolve(field.FieldType, false);
 					field.SetValue(null, val);
 				}
 			}
@@ -179,7 +125,7 @@ namespace Kernel.ServiceLocator
 					// {
 					var fields = type
 						.GetFields(BindingFlags.Static | BindingFlags.NonPublic)
-						.Where(x => x.IsDefined(typeof(InjectAttribute), false));
+						.Where(x => x.IsDefined(typeof(StaticInjectAttribute), false));
 
 					result.AddRange(fields);
 					// }
@@ -187,6 +133,14 @@ namespace Kernel.ServiceLocator
 			}
 
 			return result;
+		}
+
+		public static void ExecuteServices()
+		{
+			foreach (var kvp in _instance._singletons)
+			{
+				Locator.Resolve(kvp.Key);
+			}
 		}
 
 		public static void RegisterSingleton<TConcrete>()
@@ -209,85 +163,45 @@ namespace Kernel.ServiceLocator
 			_instance._singletons[abstractType] = concreteType;
 		}
 
-		public static void RegisterSingleton<TConcrete>(TConcrete instance)
-		{
-			RegisterSingleton(typeof(TConcrete), instance);
-		}
-
-		public static void RegisterSingleton(Type concreteType, object instance)
-		{
-			_instance._singletons[concreteType] = concreteType;
-			_instance._singletonInstances[concreteType] = instance;
-		}
-
-		public static void RegisterTransient<TAbstract, TConcrete>()
-		{
-			RegisterTransient(typeof(TAbstract), typeof(TConcrete));
-		}
-
-		public static void RegisterTransient(Type abstractType, Type concreteType)
-		{
-			_instance._transients[abstractType] = concreteType;
-		}
-
 		public static T Resolve<T>() where T : class
 		{
-			return Resolve<T>(false);
-		}
-
-		public static T Resolve<T>(bool onlyExisting) where T : class
-		{
-			return Resolve(typeof(T), onlyExisting) as T;
+			return Resolve(typeof(T), true) as T;
 		}
 
 		public static object Resolve(Type t)
 		{
-			return Resolve(t, false);
+			return Resolve(t, true);
 		}
 
-		public static object Resolve(Type t, bool onlyExisting)
+		private static object Resolve(Type t, bool awake)
 		{
-			object result = null;
 			Type concreteType = null;
+
 			if (_instance._singletons.TryGetValue(t, out concreteType))
 			{
-				object r = null;
-				if (!_instance._singletonInstances.TryGetValue(t, out r) && !onlyExisting)
+				Tuple<object, bool> result = null;
+				if (!_instance._singletonInstances.TryGetValue(t, out result))
 				{
-					if (concreteType.IsSubclassOf(typeof(MonoBehaviour)))
-					{
-						GameObject singletonGameObject = new GameObject();
-						r = singletonGameObject.AddComponent(concreteType);
-						singletonGameObject.name = t.ToString() + " (singleton)";
-					}
-					else
-					{
-						r = Activator.CreateInstance(concreteType);
-					}
+					var instance = Activator.CreateInstance(concreteType);
+					result = new Tuple<object, bool>(instance, false);
+					_instance._singletonInstances[t] = result;
+				}
 
-					_instance._singletonInstances[t] = r;
+				if (awake)
+				{
+					IService service = result.Item1 as IService;
+					if (service != null && !result.Item2)
+					{
+						result = new Tuple<object, bool>(result.Item1, true);
+						_instance._singletonInstances[t] = result;
+						service.Awake();
+					}
+				}
 
-					IService service = r as IService;
-					if (service != null) service.Awake();
-				}
-				result = r;
+				return result.Item1;
 			}
-			else if (_instance._transients.TryGetValue(t, out concreteType))
-			{
-				object r = null;
-				if (concreteType.IsSubclassOf(typeof(MonoBehaviour)))
-				{
-					GameObject singletonGameObject = new GameObject();
-					r = singletonGameObject.AddComponent(concreteType);
-					singletonGameObject.name = t.ToString() + " (transient)";
-				}
-				else
-				{
-					r = Activator.CreateInstance(concreteType);
-				}
-				result = r;
-			}
-			return result;
+
+			return null;
 		}
 	}
 }
