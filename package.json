@@ -2,7 +2,7 @@
   "name": "com.kernel.servicelocator",
   "displayName": "Kernel ServiceLocator",
   "author": "fiar",
-  "version": "0.6.6",
+  "version": "0.6.7",
   "unity": "2018.4",
   "description": "Kernel ServiceLocator package",
   "keywords": [

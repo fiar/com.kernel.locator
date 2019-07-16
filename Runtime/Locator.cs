@@ -13,6 +13,8 @@ namespace Kernel.ServiceLocator
 		private Dictionary<Type, Type> _singletons = new Dictionary<Type, Type>();
 		private Dictionary<Type, Tuple<object, bool>> _singletonInstances = new Dictionary<Type, Tuple<object, bool>>();
 
+		private static List<FieldInfo> _cachedFields = new List<FieldInfo>();
+
 
 		public static IEnumerable<KeyValuePair<Type, Type>> Singletons
 		{
@@ -55,6 +57,13 @@ namespace Kernel.ServiceLocator
 				_instance._singletonInstances.Remove(service);
 				_instance._singletons.Remove(service);
 			}
+
+			foreach (var field in _cachedFields)
+			{
+				field.SetValue(null, null);
+			}
+
+			_cachedFields.Clear();
 		}
 
 		public static void Destroy()
@@ -67,6 +76,7 @@ namespace Kernel.ServiceLocator
 
 			_instance._singletons.Clear();
 			_instance._singletonInstances.Clear();
+			_cachedFields.Clear();
 		}
 
 		public static bool IsSingletonRegistered<TConcrete>()
@@ -114,6 +124,19 @@ namespace Kernel.ServiceLocator
 					{
 						instances[val.GetType()] = val;
 					}
+
+					_cachedFields.Add(field);
+				}
+			}
+		}
+
+		private static void ResetStaticFields(IEnumerable<FieldInfo> fields)
+		{
+			foreach (var field in fields)
+			{
+				if (_instance._singletons.ContainsKey(field.FieldType))
+				{
+					field.SetValue(null, null);
 				}
 			}
 		}
